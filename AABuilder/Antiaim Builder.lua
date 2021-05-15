@@ -3,7 +3,7 @@ local clipboard = require("gamesense/clipboard") or error("Clipboard API is requ
 -- #endregion
 
 -- #region api/references/data
-local client_delay_call, client_key_state, client_screen_size, client_set_event_callback, client_unset_event_callback, client_userid_to_entindex, database_read, database_write, entity_get_local_player, entity_get_prop, entity_hitbox_position, entity_is_dormant, entity_is_enemy, globals_curtime, globals_realtime, math_abs, math_floor, math_sqrt, renderer_gradient, renderer_indicator, renderer_measure_text, renderer_text, table_remove, ui_get, ui_is_menu_open, ui_new_button, ui_new_checkbox, ui_new_combobox, ui_new_colorpicker, ui_new_hotkey, ui_new_listbox, ui_new_multiselect, ui_new_slider, ui_new_textbox, ui_reference, ui_set, ui_set_callback, ui_set_visible, ui_update = client.delay_call, client.key_state, client.screen_size, client.set_event_callback, client.unset_event_callback, client.userid_to_entindex, database.read, database.write, entity.get_local_player, entity.get_prop, entity.hitbox_position, entity.is_dormant, entity.is_enemy, globals.curtime, globals.realtime, math.abs, math.floor, math.sqrt, renderer.gradient, renderer.indicator, renderer.measure_text, renderer.text, table.remove, ui.get, ui.is_menu_open, ui.new_button, ui.new_checkbox, ui.new_combobox, ui.new_color_picker, ui.new_hotkey, ui.new_listbox, ui.new_multiselect, ui.new_slider, ui.new_textbox, ui.reference, ui.set, ui.set_callback, ui.set_visible, ui.update
+local client_delay_call, client_key_state, client_screen_size, client_set_event_callback, client_unset_event_callback, client_userid_to_entindex, database_read, database_write, entity_get_local_player, entity_get_prop, entity_hitbox_position, entity_is_dormant, entity_is_enemy, globals_curtime, globals_realtime, math_abs, math_floor, math_max, math_min, math_random, math_sqrt, renderer_gradient, renderer_indicator, renderer_measure_text, renderer_text, table_remove, ui_get, ui_is_menu_open, ui_new_button, ui_new_checkbox, ui_new_combobox, ui_new_colorpicker, ui_new_hotkey, ui_new_listbox, ui_new_multiselect, ui_new_slider, ui_new_textbox, ui_reference, ui_set, ui_set_callback, ui_set_visible, ui_update = client.delay_call, client.key_state, client.screen_size, client.set_event_callback, client.unset_event_callback, client.userid_to_entindex, database.read, database.write, entity.get_local_player, entity.get_prop, entity.hitbox_position, entity.is_dormant, entity.is_enemy, globals.curtime, globals.realtime, math.abs, math.floor, math.max, math.min, math.random, math.sqrt, renderer.gradient, renderer.indicator, renderer.measure_text, renderer.text, table.remove, ui.get, ui.is_menu_open, ui.new_button, ui.new_checkbox, ui.new_combobox, ui.new_color_picker, ui.new_hotkey, ui.new_listbox, ui.new_multiselect, ui.new_slider, ui.new_textbox, ui.reference, ui.set, ui.set_callback, ui.set_visible, ui.update
 local clipboard_get, clipboard_set = clipboard.get, clipboard.set
 
 local references = {
@@ -79,6 +79,7 @@ local stage_bodyyawval = ui_new_slider(menu[1], menu[3], "\n Body yaw slider", -
 local stage_freestandingbodyyaw = ui_new_checkbox(menu[1], menu[3], "Freestanding body yaw")
 local stage_lbytarget = ui_new_combobox(menu[1], menu[3], "Lower body yaw target", {"Off", "Sway", "Opposite", "Eye yaw"})
 local stage_fakelimit = ui_new_slider(menu[1], menu[3], "Fake yaw limit", 0, 60, 60, true)
+local stage_fakerandomization = ui_new_slider(menu[1], menu[3], "Fake yaw limit randomization", 0, 100, 0, true, "%")
 local stage_edgeyaw = ui_new_checkbox(menu[1], menu[3], "Edge yaw")
 local stage_freestanding = ui_new_multiselect(menu[1], menu[3], "Freestanding", {"Default"})
 local stage_freestanding_hotkey = ui_new_hotkey(menu[1], menu[3], "Freestanding hotkey", true)
@@ -96,18 +97,19 @@ local function copy_stage_data(index)
 	local data = {}
 
 	data = {
-		switchtype = 		index.switchtype,
-		timer = 			index.timer,
-		pitch = 			index.pitch,
-		yaw = 				index.yaw,
-		yawval = 			index.yawval,
-		yawjitter = 		index.yawjitter,
-		yawjitterval = 		index.yawjitterval,
-		bodyyaw = 			index.bodyyaw,
-		bodyyawval = 		index.bodyyawval,
-		freestandbodyyaw = 	index.freestandbodyyaw,
-		lbytarget = 		index.lbytarget,
-		fakelimit = 		index.fakelimit
+		switchtype = 		index.switchtype or "Timer",
+		timer = 			index.timer or 1,
+		pitch = 			index.pitch or "Default",
+		yaw = 				index.yaw or "Off",
+		yawval = 			index.yawval or 0,
+		yawjitter = 		index.yawjitter or "Off",
+		yawjitterval = 		index.yawjitterval or 0,
+		bodyyaw = 			index.bodyyaw or "Off",
+		bodyyawval = 		index.bodyyawval or 0,
+		freestandbodyyaw = 	index.freestandbodyyaw or false,
+		lbytarget = 		index.lbytarget or "Off",
+		fakelimit = 		index.fakelimit or 0,
+		fakerandomization = index.fakerandomization or 0
 	}
 
 	return data
@@ -223,6 +225,7 @@ local function handle_visibility()
 		ui_set(stage_freestandingbodyyaw, 	curdata.freestandbodyyaw)
 		ui_set(stage_lbytarget, 			curdata.lbytarget)
 		ui_set(stage_fakelimit, 			curdata.fakelimit)
+		ui_set(stage_fakerandomization,     curdata.fakerandomization)
 	end
 
 	if cur > init_size and main_table[cur] ~= nil then 
@@ -266,6 +269,7 @@ local function handle_visibility()
 	ui_set_visible(stage_freestandingbodyyaw,	bool_stage and ui_get(stage_bodyyaw) ~= "Off")
 	ui_set_visible(stage_lbytarget, 			bool_stage and ui_get(stage_bodyyaw) ~= "Off")
 	ui_set_visible(stage_fakelimit, 			bool_stage and ui_get(stage_bodyyaw) ~= "Off")
+	ui_set_visible(stage_fakerandomization, 	bool_stage and ui_get(stage_bodyyaw) ~= "Off")
 	ui_set_visible(stage_edgeyaw,    			bool_stage)
 	ui_set_visible(stage_freestanding,    		bool_stage)
 	ui_set_visible(stage_freestanding_hotkey,   bool_stage)
@@ -356,7 +360,7 @@ local function handle_antiaim()
 		ui_set(references.bodyyaw[2], curdata.bodyyawval)
 		ui_set(references.freestandbodyyaw, curdata.freestandbodyyaw)
 		ui_set(references.lbytarget, curdata.lbytarget)
-		ui_set(references.fakelimit, curdata.fakelimit)
+		ui_set(references.fakelimit, math_max(0, math_min(60, math_random(curdata.fakelimit-curdata.fakelimit*curdata.fakerandomization/100, curdata.fakelimit+curdata.fakelimit*curdata.fakerandomization/100)))) -- big boi
 		ui_set(references.edgeyaw, ui_get(stage_edgeyaw))
 		ui_set(references.freestanding[1], ui_get(stage_freestanding))
 		ui_set(references.freestanding[2], ui_get(stage_freestanding_hotkey) and "Always on" or "On hotkey")
@@ -380,7 +384,7 @@ local function handle_indicators()
 			local space = th * 1.1
 
 			renderer_gradient(sw - 10 - math_floor(tw * 0.33 + 0.5), sh * 0.67 - space * #main_table + space * i, tw * 0.33, th, 0, 0, 0, 75 * a * 0.004, 0, 0, 0, 0, true) -- multiplication faster than division
-			renderer_gradient(sw - 10 - mathfloor(tw * 0.66), sh * 0.67 - space * #main_table + space * i, tw * 0.33, th, 0, 0, 0, 0, 0, 0, 0, 75 * a * 0.004, true)
+			renderer_gradient(sw - 10 - math_floor(tw * 0.66), sh * 0.67 - space * #main_table + space * i, tw * 0.33, th, 0, 0, 0, 0, 0, 0, 0, 75 * a * 0.004, true)
 
 			if i == current_stage then
 				renderer_text(sw - 10, sh * 0.67 - space * #main_table + space * i, r, g, b, a, "brd+", 0, main_table[i])
@@ -427,6 +431,7 @@ data_callback(stage_bodyyawval, "bodyyawval")
 data_callback(stage_freestandingbodyyaw, "freestandbodyyaw")
 data_callback(stage_lbytarget, "lbytarget")
 data_callback(stage_fakelimit, "fakelimit")
+data_callback(stage_fakerandomization, "fakerandomization")
 
 ui_set_callback(main_master_switch, 		handle_callbacks)
 ui_set_callback(main_listbox, 				handle_visibility)
@@ -551,7 +556,7 @@ ui_set_callback(config_load, function()
 	clear_stage_data()
 	for i = 1, #data do
 		main_table[#main_table+1] = data[i].id
-		main_data[#main_data+1] = data[i].data
+		main_data[#main_data+1] = copy_stage_data(data[i].data)
 	end
 
 	ui_set(stage_yawbase, data[1].extras.yawbase)
