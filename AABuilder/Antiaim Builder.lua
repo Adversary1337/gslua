@@ -156,9 +156,7 @@ local function on_bullet_impact(e) -- stolen from some bruteforce lua, im way to
 end
 
 local function on_prestart()
-	if current_stage > #main_data then
-		current_stage = init_size + 1
-	end
+	current_stage = current_stage % (#main_data - init_size + 1)
 
 	local curdata = main_data[current_stage]
 
@@ -178,9 +176,7 @@ local function on_weapon_fire(e)
 		return
 	end
 
-	if current_stage > #main_data then
-		current_stage = init_size + 1
-	end
+	current_stage = current_stage % (#main_data - init_size + 1)
 
 	local curdata = main_data[current_stage]
 
@@ -293,13 +289,8 @@ end
 
 local function handle_antiaim()
 	local cur = ui_get(main_listbox)+1
-
 	if #main_table <= init_size then return end
-
-	if current_stage > #main_data then
-		current_stage = init_size + 1
-	end
-
+	current_stage = current_stage % (#main_data - init_size + 1)
 	local curdata = main_data[current_stage]
 
 	if curdata.switchtype == "Timer" then
@@ -343,11 +334,7 @@ local function handle_antiaim()
 
 	if should_switch then
 		current_stage = current_stage + 1
-
-		if current_stage > #main_data then
-			current_stage = init_size + 1
-		end
-
+		current_stage = current_stage % (#main_data - init_size + 1)
 		curdata = main_data[current_stage]
 
 		ui_set(references.pitch, curdata.pitch)
@@ -360,13 +347,16 @@ local function handle_antiaim()
 		ui_set(references.bodyyaw[2], curdata.bodyyawval)
 		ui_set(references.freestandbodyyaw, curdata.freestandbodyyaw)
 		ui_set(references.lbytarget, curdata.lbytarget)
-		ui_set(references.fakelimit, math_max(0, math_min(60, math_random(curdata.fakelimit-curdata.fakelimit*curdata.fakerandomization/100, curdata.fakelimit+curdata.fakelimit*curdata.fakerandomization/100)))) -- big boi
+		ui_set(references.fakelimit, curdata.fakelimit) -- big boi
 		ui_set(references.edgeyaw, ui_get(stage_edgeyaw))
 		ui_set(references.freestanding[1], ui_get(stage_freestanding))
 		ui_set(references.freestanding[2], ui_get(stage_freestanding_hotkey) and "Always on" or "On hotkey")
 
 		should_switch = false
 	end
+
+	local fake = math_max(0, math_min(60, math_random(curdata.fakelimit-curdata.fakelimit*curdata.fakerandomization/100, curdata.fakelimit+curdata.fakelimit*curdata.fakerandomization/100)))
+	ui_set(references.fakelimit, fake)
 end
 
 local function handle_indicators()
